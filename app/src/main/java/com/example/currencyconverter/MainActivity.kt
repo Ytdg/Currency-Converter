@@ -20,15 +20,17 @@ import androidx.compose.ui.unit.dp
 import com.example.currencyconverter.presentation.ScreenCurrency
 import com.example.currencyconverter.presentation.TextFieldInputCurrency
 import com.example.currencyconverter.ui.theme.CurrencyConverterTheme
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
+
             CurrencyConverterTheme {
                 Surface(color = Color(232, 232, 232)) {
-
 
                     ScreenCurrency(modifier = Modifier.fillMaxSize())
                 }

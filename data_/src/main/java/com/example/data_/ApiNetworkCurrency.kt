@@ -1,21 +1,24 @@
 package com.example.data_
 
-import retrofit2.Response
+import retrofit2.Call
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
 
 
-
- internal interface ApiNetworkCurrency {
-    @GET("/codes")
-    fun getCodes(): Response<Currency>
+interface ApiNetworkCurrency {
+    @GET("codes")
+    fun getCodes(): Call<Currencies>
 }
 
-internal fun getInstanseApiNetwork(baseUrl: String): Retrofit {
-
-    return Retrofit.Builder().baseUrl(baseUrl).addConverterFactory(GsonConverterFactory.create())
-        .build()
+internal fun <T> getInstanseRetrofit(
+    baseUrl: String,
+    apiKey: String?,
+    apiInterface: Class<T>
+): T {
+    val resUrl = if (apiKey == null) baseUrl else "$baseUrl$apiKey/"
+    return Retrofit.Builder().baseUrl(resUrl).addConverterFactory(GsonConverterFactory.create())
+        .build().create(apiInterface)
 
 }
 

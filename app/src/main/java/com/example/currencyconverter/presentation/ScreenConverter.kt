@@ -9,22 +9,22 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -44,62 +44,88 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.currencyconverter.presentation.models.CurrencyState
+import com.example.currencyconverter.presentation.models.Load
+import com.example.currencyconverter.presentation.models.SingleCurrencyState
+import com.example.currencyconverter.presentation.models.ViewModelCurrency
 
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-fun ExposedDropdownMenuCurrency(label: @Composable () -> Unit) {
-    val options = listOf(
-        "USD",
-        "USD",
-        "USD",
-        "USD",
-        "USD",
-        "USD",
-        "USD",
-        "USD"
-    )
-    var expanded = remember { mutableStateOf(false) }
-    var text = remember { mutableStateOf(options[0]) }
+fun ExposedDropdownMenuCurrency(
+    currencyState: State<CurrencyState>,
+    onEvents: (Events) -> Unit,
+    label: @Composable () -> Unit
+) {
 
+    val expanded = remember { mutableStateOf(false) }
     ExposedDropdownMenuBox(
         expanded = expanded.value,
-        onExpandedChange = { expanded.value = it },
+        onExpandedChange = { expanded.value = it;onEvents(Events.GetCurrencies) },
     ) {
         TextFieldMenuCurrency(
             modifier = Modifier
                 .menuAnchor()
-                .width(150.dp), expanded = expanded, selectedItem = text, label = label
+                .width(150.dp),
+            expanded = expanded,
+            selectedItem = currencyState.value.selectCurrency,
+            label = label
         )
         CompositionLocalProvider(LocalOverscrollConfiguration provides null) {
+
             ExposedDropdownMenu(
                 expanded = expanded.value,
                 onDismissRequest = { expanded.value = false },
                 modifier = Modifier
-                    .heightIn(100.dp, max = 170.dp)
-                    .width(120.dp)
+                    .heightIn(50.dp, max = 170.dp)
+                    .width(120.dp).background(Color.White)
             ) {
-                options.forEach { option ->
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                option,
-                                style = TextStyle(
-                                    color = Color(40, 95, 112),
-                                    textAlign = TextAlign.Center
-                                ),
-                                modifier = Modifier.fillMaxWidth()
+                when (currencyState.value.load) {
+                    Load.Load -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(color = Color.Gray)
+                        }
+                    }
+
+                    Load.Error -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(text = "An error has occurred",color=Color.Gray, modifier = Modifier.padding(horizontal = 5.dp))
+                        }
+                    }
+
+                    Load.Nothing -> {}
+                    Load.Successfully -> {
+                        currencyState.value.currencies.forEach { currency ->
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = currency.value,
+                                        style = TextStyle(
+                                            color = Color(40, 95, 112),
+                                            textAlign = TextAlign.Center
+                                        ),
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                },
+                                onClick = {
+                                    onEvents(Events.SelectCurrency(currency))
+                                    expanded.value = false
+                                },
+                                contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
                             )
-                        },
-                        onClick = {
-                            text.value = option
-                            expanded.value = false
-                        },
-                        contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
-                    )
+                        }
+                    }
                 }
             }
         }
+
     }
 }
 
@@ -161,12 +187,12 @@ val colorTextField = @Composable {
 fun TextFieldMenuCurrency(
     modifier: Modifier,
     expanded: State<Boolean>,
-    selectedItem: State<String>,
+    selectedItem: SingleCurrencyState? = null,
     label: @Composable () -> Unit
 ) {
     TextField(
         modifier = modifier,
-        value = selectedItem.value,
+        value = selectedItem?.value ?: "Select",
         onValueChange = {},
         readOnly = true,
         singleLine = true,
@@ -182,7 +208,11 @@ fun TextFieldMenuCurrency(
 }
 
 @Composable
-fun ScreenCurrency(modifier: Modifier) {
+fun ScreenCurrency(modifier: Modifier, vm: ViewModelCurrency = hiltViewModel()) {
+    val stateCurrency = vm.stateCurrency
+    val onEvent = remember {
+        { event: Events -> vm.onEvent(event) }
+    }
     Box(modifier = modifier) {
         LazyColumn(
             modifier = Modifier
@@ -199,7 +229,7 @@ fun ScreenCurrency(modifier: Modifier) {
                 ) {
                     ExposedDropdownMenuCurrency(label = {
                         Text(text = "Amount", color = Color.Gray)
-                    })
+                    }, onEvents = onEvent, currencyState = stateCurrency)
                     TextFieldInputCurrency(
                         modifier = Modifier
                             .width(140.dp)
@@ -218,30 +248,6 @@ fun ScreenCurrency(modifier: Modifier) {
                 HorizontalDivider()
             }
             item(key = 2) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    ExposedDropdownMenuCurrency(label = {
-                        Text(
-                            text = "Convert to",
-                            color = Color.Gray
-                        )
-                    })
-                    TextFieldInputCurrency(
-                        modifier = Modifier
-                            .width(140.dp)
-                            .height(60.dp),
-                        readOnly = true,
-                        label = {
-                            Text(
-                                text = "Exchange rate",
-                                color = Color.Gray,
-                                fontSize = 12.sp
-                            )
-                        }
-                    )
-                }
 
             }
 
